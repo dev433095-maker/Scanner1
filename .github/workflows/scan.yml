@@ -1,0 +1,31 @@
+name: Scan
+on:
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate all IPv4
+        run: |
+          python3 -c "import ipaddress; f=open('ips.txt','w'); [f.write(str(ip)+'\n') for ip in ipaddress.IPv4Network('0.0.0.0/0')]; f.close()"
+          echo "Сгенерировано: $(wc -l < ips.txt) IP"
+
+      - name: Install Nuclei
+        run: |
+          wget -q https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_3.1.0_linux_amd64.zip
+          unzip -q nuclei_3.1.0_linux_amd64.zip
+          chmod +x nuclei
+
+      - name: Run Scan
+        run: |
+          ./nuclei -l ips.txt -t ~/nuclei-templates/exposures/ -o results.txt -timeout 2 -rate-limit 500 -bulk-size 100
+          echo "Скан завершен"
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results
+          path: results.txt
